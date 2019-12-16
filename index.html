@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Croppie</title>
+    <link rel="stylesheet" href="./css/croppie.css"/>
+    <script src="./js/croppie.js"></script>
+    <style>
+        div {
+            border: 1px blue solid;
+        }
+    </style>
+</head>
+<body onload="init();">
+<script>
+
+    const fileFunctionsSupported = areFileFuntionsSupported();
+    const imgWidth = 170;
+    const imgHeight = 170;
+    var croppie = Object;
+    var canvas = Object;
+
+    function setMsg(message) {
+        let msg = document.getElementById('msg');
+        msg.value = message;
+    }
+
+    function areFileFuntionsSupported() {
+        return window.File && window.FileReader && window.FileList && window.Blob;
+    }
+
+    function init() {
+        console.debug('init');
+        if (fileFunctionsSupported()) {
+            croppie = initCroppie(document.getElementById('imageToEdit'));
+            canvas = document.getElementById('canvas');
+            document.getElementById('imgupload').addEventListener('change', loadImage, false);
+            enableCroppie(true);
+        } else {
+            console.debug('file functions NOT supported');
+            enableCroppie(false);
+        }
+        enableCropButton(false);
+    }
+
+    function enableCroppie(enable) {
+        document.getElementById('container').visible = enable;
+    }
+
+    function enableCropButton(enable) {
+        document.getElementById('crop').enable = enable;
+    }
+
+    function initCroppie(elem) {
+        return new Croppie(elem, {
+            showZoomer: true,
+            enableZoom: true,
+            enableResize: false,
+            enableOrientation: true,
+            mouseWheelZoom: 'ctrl',
+            viewport: {width: imgWidth, height: imgHeight, type: 'circle'},
+            boundary: {width: 300, height: 300}
+        });
+    }
+
+    function crop() {
+        croppie.result().then((imgData, b) => {
+            console.debug(imgData);
+            loadImageInCanvas(canvas, imgData, imgWidth, imgHeight);
+        });
+    }
+
+    function loadImage(evt) {
+        let files = evt.target.files;
+
+        if (files.length !== 1) return;
+
+        if (!files[0].type.match('image.*')) return;
+
+        let reader = new FileReader();
+        reader.onabort = function () {
+            console.debug('on abort')
+        };
+
+        reader.onerror = function (event) {
+            console.debug('reader error ' + event.target.error);
+            setMsg("error processing image [" + event.target.error + "]");
+            reader.abort();
+        };
+
+        reader.onload = function (e) {
+            loadImageToCroppie(e.target.result).then((a, b) => {
+                enableCropButton(true);
+            }).catch(err => {
+              setMsg(err)
+            });
+        };
+
+        reader.readAsDataURL(files[0]);
+    }
+
+    function loadImageToCroppie(file) {
+        return croppie.bind({url: file})
+    }
+
+    function loadImageInCanvas(canvas, imageData, width, height) {
+        canvas.height = height;
+        canvas.width = width;
+        const canvasCtx = canvas.getContext('2d');
+        const img = new Image();
+        img.src = imageData;
+        img.onload = function () {
+            if (img.complete) {
+                canvasCtx.drawImage(img, 0, 0);
+            } else {
+                console.debug('image not complete')
+            }
+        }
+    }
+</script>
+
+<div id="container">
+    <div id="imageToEdit"></div>
+    <div id="controls">
+        <input type="file" name="imgupload" value="imgupload" id="imgupload">
+        <button type="button" id="crop" onclick="crop();">Apply</button>
+        <canvas id="canvas" style="display: block">
+            Fallback content, in case the browser does not support Canvas.
+        </canvas>
+    </div>
+</div>
+<div id="msg"></div>
+</body>
+</html>
